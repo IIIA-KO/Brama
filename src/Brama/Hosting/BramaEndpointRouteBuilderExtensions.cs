@@ -1,4 +1,5 @@
 using Brama.Configuration;
+using Brama.Http;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -43,6 +44,10 @@ public static class BramaEndpointRouteBuilderExtensions
             endpoint.ApplyResponseTyping(builder);
 
             ApplyUserFilters(builder, config);
+
+            // Innermost, so a user filter can still rewrite what gets validated, and the handler
+            // never runs against a request that failed a field-level check.
+            builder.AddEndpointFilter<ValidationFilter>();
         }
 
         return endpoints;
