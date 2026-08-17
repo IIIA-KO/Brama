@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+using System.Linq;
 using Microsoft.CodeAnalysis;
 
 namespace Brama.SourceGenerator;
@@ -30,5 +32,40 @@ public sealed class BramaGenerator : IIncrementalGenerator
                     public const string Message = "Hello from the Brama source generator!";
                 }
                 """));
+
+        IncrementalValuesProvider<ProblemDetailsAnalysis> problemDetails = context.SyntaxProvider
+            .CreateSyntaxProvider(
+                predicate: static (node, _) => ProblemDetailsAnalyzer.IsCandidate(node),
+                transform: static (syntaxContext, cancellationToken) =>
+                    ProblemDetailsAnalyzer.Analyze(syntaxContext, cancellationToken))
+            .Where(static analysis => analysis is not null)
+            .Select(static (analysis, _) => analysis!);
+
+        context.RegisterSourceOutput(problemDetails.Collect(), static (sourceProductionContext, analyses) =>
+            Report(sourceProductionContext, analyses));
+    }
+
+    private static void Report(SourceProductionContext context, ImmutableArray<ProblemDetailsAnalysis> analyses)
+    {
+        foreach (ProblemDetailsAnalysis analysis in analyses)
+        {
+            if (analysis.EscapedTo is { } escapedTo)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    BramaDiagnostics.ConfigurationNotStaticallyAnalyzable,
+                    analysis.Location,
+                    escapedTo));
+
+                continue;
+            }
+
+            foreach (string missing in analysis.MissingKinds)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    BramaDiagnostics.MissingErrorKindMapping,
+                    analysis.Location,
+                    missing));
+            }
+        }
     }
 }

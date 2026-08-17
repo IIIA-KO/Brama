@@ -14,6 +14,11 @@ public static class GeneratorTestHelper
     {
         SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText(source);
 
+        // Touch the Brama assemblies so they are loaded before the sweep below: the generator
+        // resolves ErrorKind and ApiConfig by metadata name, and a merely-referenced-but-unloaded
+        // assembly would leave it looking at source with no Brama in it at all.
+        EnsureLoaded(typeof(ErrorKind), typeof(Brama.Configuration.ApiConfig));
+
         List<MetadataReference> references = AppDomain.CurrentDomain.GetAssemblies()
             .Where(assembly => !assembly.IsDynamic && !string.IsNullOrEmpty(assembly.Location))
             .Select(assembly => (MetadataReference)MetadataReference.CreateFromFile(assembly.Location))
@@ -36,6 +41,8 @@ public static class GeneratorTestHelper
 
         return new GeneratorRunResult(outputCompilation, generatorDiagnostics, compilationDiagnostics);
     }
+
+    private static void EnsureLoaded(params Type[] types) => _ = types.Length;
 }
 
 /// <summary>
