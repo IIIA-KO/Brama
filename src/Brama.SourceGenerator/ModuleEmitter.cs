@@ -38,11 +38,18 @@ internal static class ModuleEmitter
             ? "Brama.Generated"
             : module.ContainingNamespace.ToDisplayString();
 
+        AttributeData[] requests = [.. module.GetAttributes()
+            .Where(attribute => attribute.AttributeClass?.ToDisplayString() == RegisterAllAttributeName)];
+
+        // Walked once per module, not once per [RegisterAll]: this runs on every keystroke in the
+        // IDE, and a per-attribute sweep of every type in the assembly is how a generator earns a
+        // reputation for making the editor stutter.
+        List<INamedTypeSymbol> candidates = requests.Length == 0 ? [] : [.. ConcreteTypesIn(compilation)];
+
         var body = new StringBuilder();
-        foreach (AttributeData request in module.GetAttributes()
-            .Where(attribute => attribute.AttributeClass?.ToDisplayString() == RegisterAllAttributeName))
+        foreach (AttributeData request in requests)
         {
-            AppendRegistrations(body, request, compilation);
+            AppendRegistrations(body, request, candidates);
         }
 
         if (body.Length == 0)
@@ -77,7 +84,10 @@ internal static class ModuleEmitter
         return ($"{module.Name}.Module.g.cs", source);
     }
 
-    private static void AppendRegistrations(StringBuilder body, AttributeData request, Compilation compilation)
+    private static void AppendRegistrations(
+        StringBuilder body,
+        AttributeData request,
+        List<INamedTypeSymbol> candidates)
     {
         if (request.ConstructorArguments.Length == 0
             || request.ConstructorArguments[0].Value is not INamedTypeSymbol serviceType)
@@ -87,7 +97,7 @@ internal static class ModuleEmitter
 
         string lifetime = LifetimeOf(request);
 
-        foreach (INamedTypeSymbol implementation in ConcreteTypesIn(compilation))
+        foreach (INamedTypeSymbol implementation in candidates)
         {
             foreach (INamedTypeSymbol contract in implementation.AllInterfaces)
             {
@@ -102,11 +112,27 @@ internal static class ModuleEmitter
         }
     }
 
-    private static bool Matches(INamedTypeSymbol contract, INamedTypeSymbol serviceType) =>
-        SymbolEqualityComparer.Default.Equals(contract, serviceType)
-        || (serviceType.IsUnboundGenericType
+    /// <summary>
+    /// Whether an implemented interface satisfies the requested service type. A closed request
+    /// (<c>IHandler&lt;Order&gt;</c>) matches only that interface; an open one
+    /// (<c>IHandler&lt;&gt;</c>) matches every closed form of it.
+    /// </summary>
+    /// <remarks>
+    /// Compared through <see cref="ISymbol.OriginalDefinition"/> on both sides: the symbol for
+    /// <c>typeof(IHandler&lt;&gt;)</c> in an attribute argument is an unbound generic, which is not
+    /// the same symbol as the interface definition a type is recorded as implementing.
+    /// </remarks>
+    private static bool Matches(INamedTypeSymbol contract, INamedTypeSymbol serviceType)
+    {
+        if (SymbolEqualityComparer.Default.Equals(contract, serviceType))
+        {
+            return true;
+        }
+
+        return serviceType.IsUnboundGenericType
             && contract.IsGenericType
-            && SymbolEqualityComparer.Default.Equals(contract.ConstructedFrom, serviceType.ConstructedFrom));
+            && SymbolEqualityComparer.Default.Equals(contract.OriginalDefinition, serviceType.OriginalDefinition);
+    }
 
     private static string LifetimeOf(AttributeData request)
     {

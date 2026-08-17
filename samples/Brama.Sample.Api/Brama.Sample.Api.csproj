@@ -14,4 +14,10 @@
                           ReferenceOutputAssembly="false" />
     </ItemGroup>
 
+    <!--
+      A packaged consumer gets this via buildTransitive/. This sample references the generator as a
+      project, which does not flow targets, so it imports them by path.
+    -->
+    <Import Project="../../src/Brama.SourceGenerator/build/Brama.Contracts.targets" />
+
 </Project>

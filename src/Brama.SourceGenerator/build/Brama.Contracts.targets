@@ -1,0 +1,202 @@
+<Project>
+
+  <!--
+    Brama Contracts.
+
+    The source generator cannot write files — Roslyn forbids it, and it runs on every keystroke, so
+    anything it wrote to the tracked tree would be rewritten mid-typing. It therefore emits the API
+    surface as generated source under obj/, and this target — which runs only on a real build — is
+    the single thing allowed to touch the committed snapshot.
+  -->
+
+  <PropertyGroup>
+    <BramaContractsEnabled Condition="'$(BramaContractsEnabled)' == ''">true</BramaContractsEnabled>
+    <BramaContractsDirectory Condition="'$(BramaContractsDirectory)' == ''">$(MSBuildProjectDirectory)/contracts</BramaContractsDirectory>
+
+    <!-- The generator's output has to reach disk for this target to read it. -->
+    <EmitCompilerGeneratedFiles Condition="'$(BramaContractsEnabled)' == 'true'">true</EmitCompilerGeneratedFiles>
+  </PropertyGroup>
+
+  <Target Name="BramaVerifyContracts"
+          AfterTargets="CoreCompile"
+          Condition="'$(BramaContractsEnabled)' == 'true' And '$(DesignTimeBuild)' != 'true' And '$(BuildingProject)' == 'true'">
+
+    <ItemGroup>
+      <BramaContractSource Include="$(CompilerGeneratedFilesOutputPath)/**/Brama.Contract.g.cs" />
+    </ItemGroup>
+
+    <BramaContractCheck Condition="'@(BramaContractSource)' != ''"
+                        GeneratedContract="@(BramaContractSource)"
+                        ContractsDirectory="$(BramaContractsDirectory)" />
+  </Target>
+
+  <UsingTask TaskName="BramaContractCheck"
+             TaskFactory="RoslynCodeTaskFactory"
+             AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <GeneratedContract ParameterType="System.String" Required="true" />
+      <ContractsDirectory ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Code Type="Class" Language="cs"><![CDATA[
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using Microsoft.Build.Framework;
+using Microsoft.Build.Utilities;
+
+public class BramaContractCheck : Task
+{
+    public string GeneratedContract { get; set; }
+
+    public string ContractsDirectory { get; set; }
+
+    public override bool Execute()
+    {
+        if (!File.Exists(GeneratedContract))
+        {
+            return true;
+        }
+
+        bool ok = true;
+        foreach (var block in ReadBlocks(File.ReadAllLines(GeneratedContract)))
+        {
+            ok &= Check(block);
+        }
+
+        return ok;
+    }
+
+    private bool Check(Block block)
+    {
+        Directory.CreateDirectory(ContractsDirectory);
+
+        string path = Path.Combine(ContractsDirectory, block.Identity + ".contract.txt");
+        string current = string.Join(Environment.NewLine, block.Facts) + Environment.NewLine;
+
+        if (!File.Exists(path))
+        {
+            File.WriteAllText(path, current);
+            Log.LogMessage(
+                MessageImportance.High,
+                "Brama: froze the contract for {0}. Commit {1}.",
+                block.Identity,
+                Relative(path));
+
+            return true;
+        }
+
+        var committed = File.ReadAllLines(path)
+            .Select(line => line.Trim())
+            .Where(line => line.Length > 0)
+            .ToList();
+
+        var now = new HashSet<string>(block.Facts, StringComparer.Ordinal);
+        var lost = committed.Where(fact => !now.Contains(fact)).ToList();
+
+        if (lost.Count == 0)
+        {
+            // Additions only. The snapshot moves forward on its own; nothing has been broken.
+            if (!string.Equals(File.ReadAllText(path), current, StringComparison.Ordinal))
+            {
+                File.WriteAllText(path, current);
+                Log.LogMessage(MessageImportance.High,
+                    "Brama: {0} gained surface without breaking anything; updated {1}.",
+                    block.Identity,
+                    Relative(path));
+            }
+
+            return true;
+        }
+
+        if (block.AcceptedReason != null)
+        {
+            File.WriteAllText(path, current);
+            Log.LogWarning(
+                "BRAMA010: accepted a breaking change to {0} because: {1}. {2} rewritten; remove the " +
+                "AcceptBreakingChange call once this is merged.",
+                block.Identity,
+                block.AcceptedReason,
+                Relative(path));
+
+            return true;
+        }
+
+        Log.LogError(
+            "BRAMA010: {0} has already shipped, and this build removes {1} thing(s) from its contract:{2}{3}{2}" +
+            "Add .AcceptBreakingChange(reason: \"...\") to that group if the break is intended, or restore " +
+            "the surface. Committed contract: {4}.",
+            block.Identity,
+            lost.Count,
+            Environment.NewLine,
+            string.Join(Environment.NewLine, lost.Select(fact => "  - " + fact)),
+            Relative(ContractsDirectory + "/" + block.Identity + ".contract.txt"));
+
+        return false;
+    }
+
+    private string Relative(string path)
+    {
+        string root = Directory.GetCurrentDirectory();
+
+        return path.StartsWith(root, StringComparison.Ordinal) ? path.Substring(root.Length).TrimStart('/', '\\') : path;
+    }
+
+    private static IEnumerable<Block> ReadBlocks(string[] lines)
+    {
+        Block current = null;
+
+        foreach (string raw in lines)
+        {
+            string line = raw.TrimStart();
+            if (!line.StartsWith("//", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            line = line.Substring(2).Trim();
+
+            if (line.StartsWith("BRAMA-CONTRACT-BEGIN ", StringComparison.Ordinal))
+            {
+                current = new Block { Identity = line.Substring("BRAMA-CONTRACT-BEGIN ".Length).Trim() };
+                continue;
+            }
+
+            if (current == null)
+            {
+                continue;
+            }
+
+            if (line == "BRAMA-CONTRACT-END")
+            {
+                yield return current;
+                current = null;
+                continue;
+            }
+
+            if (line.StartsWith("BRAMA-ACCEPT-BREAKING ", StringComparison.Ordinal))
+            {
+                current.AcceptedReason = line.Substring("BRAMA-ACCEPT-BREAKING ".Length).Trim();
+                continue;
+            }
+
+            if (line.Length > 0)
+            {
+                current.Facts.Add(line);
+            }
+        }
+    }
+
+    private sealed class Block
+    {
+        public string Identity;
+        public string AcceptedReason;
+        public List<string> Facts = new List<string>();
+    }
+}
+]]></Code>
+    </Task>
+  </UsingTask>
+
+</Project>

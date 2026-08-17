@@ -129,6 +129,86 @@ public class ModuleRegistrationTests
     }
 
     [Fact]
+    public void A_closed_generic_request_registers_only_that_one_implementation()
+    {
+        GeneratorRunResult result = Run("""
+            using Brama;
+
+            namespace Sample;
+
+            public interface IHandler<TEvent> { }
+
+            public record Placed;
+            public record Cancelled;
+
+            public class PlacedHandler : IHandler<Placed> { }
+            public class CancelledHandler : IHandler<Cancelled> { }
+
+            [Module]
+            [RegisterAll(typeof(IHandler<Placed>))]
+            public partial class OrdersModule;
+            """);
+
+        string generated = result.GetGeneratedSource("OrdersModule.Module.g.cs");
+
+        Assert.Contains("typeof(Sample.PlacedHandler)", generated, StringComparison.Ordinal);
+        Assert.DoesNotContain("typeof(Sample.CancelledHandler)", generated, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_type_handling_two_events_is_registered_against_both()
+    {
+        GeneratorRunResult result = Run("""
+            using Brama;
+
+            namespace Sample;
+
+            public interface IHandler<TEvent> { }
+
+            public record Placed;
+            public record Cancelled;
+
+            public class BothHandler : IHandler<Placed>, IHandler<Cancelled> { }
+
+            [Module]
+            [RegisterAll(typeof(IHandler<>))]
+            public partial class OrdersModule;
+            """);
+
+        string generated = result.GetGeneratedSource("OrdersModule.Module.g.cs");
+
+        Assert.Contains("typeof(Sample.IHandler<Sample.Placed>), typeof(Sample.BothHandler)", generated, StringComparison.Ordinal);
+        Assert.Contains("typeof(Sample.IHandler<Sample.Cancelled>), typeof(Sample.BothHandler)", generated, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Several_RegisterAll_attributes_on_one_module_are_all_honoured()
+    {
+        GeneratorRunResult result = Run("""
+            using Brama;
+            using Microsoft.Extensions.DependencyInjection;
+
+            namespace Sample;
+
+            public interface IReader { }
+            public interface IWriter { }
+
+            public class Reader : IReader { }
+            public class Writer : IWriter { }
+
+            [Module]
+            [RegisterAll(typeof(IReader))]
+            [RegisterAll(typeof(IWriter), Lifetime = ServiceLifetime.Transient)]
+            public partial class OrdersModule;
+            """);
+
+        string generated = result.GetGeneratedSource("OrdersModule.Module.g.cs");
+
+        Assert.Contains("services.AddScoped(typeof(Sample.IReader), typeof(Sample.Reader));", generated, StringComparison.Ordinal);
+        Assert.Contains("services.AddTransient(typeof(Sample.IWriter), typeof(Sample.Writer));", generated, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void A_class_without_the_marker_gets_nothing()
     {
         GeneratorRunResult result = Run("""

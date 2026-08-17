@@ -1,0 +1,22 @@
+endpoint  GET /orders/{id:guid}
+endpoint  POST /orders
+request  POST /orders  Brama.Sample.Api.Orders.CreateOrderBody
+request.field  POST /orders  Brama.Sample.Api.Orders.CreateOrderBody.CustomerId : System.Guid
+request.field  POST /orders  Brama.Sample.Api.Orders.CreateOrderBody.Description : string
+request.field  POST /orders  Brama.Sample.Api.Orders.CreateOrderBody.Draft : bool
+response  GET /orders/{id:guid}  Brama.Sample.Api.Orders.OrderResponse
+response  POST /orders  Brama.Sample.Api.Orders.OrderResponse
+response.field  GET /orders/{id:guid}  CustomerId : System.Guid
+response.field  GET /orders/{id:guid}  Description : string
+response.field  GET /orders/{id:guid}  Id : System.Guid
+response.field  GET /orders/{id:guid}  Status : string
+response.field  POST /orders  CustomerId : System.Guid
+response.field  POST /orders  Description : string
+response.field  POST /orders  Id : System.Guid
+response.field  POST /orders  Status : string
+status  ErrorKind.Conflict = 409
+status  ErrorKind.Forbidden = 403
+status  ErrorKind.NotFound = 404
+status  ErrorKind.Problem = 400
+status  ErrorKind.Unauthorized = 401
+status  ErrorKind.Validation = 400

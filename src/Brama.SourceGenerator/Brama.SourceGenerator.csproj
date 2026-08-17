@@ -9,6 +9,11 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <!-- Packaged so a consumer gets the Contracts build step with the NuGet, no CLI to install. -->
+        <None Include="build/Brama.Contracts.targets" Pack="true" PackagePath="buildTransitive/" />
+    </ItemGroup>
+
+    <ItemGroup>
         <!-- Release tracking for the BRAMA* diagnostics, required by RS2008. -->
         <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
         <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />

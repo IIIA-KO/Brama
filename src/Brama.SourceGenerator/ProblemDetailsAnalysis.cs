@@ -6,6 +6,7 @@ using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Brama.SourceGenerator.Contracts;
 
 namespace Brama.SourceGenerator;
 
@@ -18,10 +19,12 @@ namespace Brama.SourceGenerator;
 /// The method the configuration was handed to, if it left the generator's view. When set, no
 /// exhaustiveness claim is made — see <see cref="BramaDiagnostics.ConfigurationNotStaticallyAnalyzable"/>.
 /// </param>
+/// <param name="Contracts">The API surface this scope declares, for the Contracts build step.</param>
 internal sealed record ProblemDetailsAnalysis(
     Location Location,
     ImmutableArray<string> MissingKinds,
-    string? EscapedTo);
+    string? EscapedTo,
+    IReadOnlyList<ContractGroup> Contracts);
 
 /// <summary>
 /// Reads <c>ProblemDetails(…)</c> configuration out of source syntax.
@@ -67,17 +70,23 @@ internal static class ProblemDetailsAnalyzer
         string? escapedTo = FindEscape(scope, model, apiConfigType, cancellationToken);
         if (escapedTo is not null)
         {
-            return new ProblemDetailsAnalysis(invocation.GetLocation(), ImmutableArray<string>.Empty, escapedTo);
+            return new ProblemDetailsAnalysis(invocation.GetLocation(), ImmutableArray<string>.Empty, escapedTo, []);
         }
 
-        ImmutableHashSet<string> mapped = MappedKindsIn(scope, model, cancellationToken);
+        Dictionary<string, int> mapped = MappedKindsIn(scope, model, cancellationToken);
         ImmutableArray<string> missing = errorKindType.GetMembers()
             .OfType<IFieldSymbol>()
-            .Where(field => field.ConstantValue is not null && !mapped.Contains(field.Name))
+            .Where(field => field.ConstantValue is not null && !mapped.ContainsKey(field.Name))
             .Select(field => $"ErrorKind.{field.Name}")
             .ToImmutableArray();
 
-        return new ProblemDetailsAnalysis(invocation.GetLocation(), missing, EscapedTo: null);
+        IReadOnlyList<ContractGroup> contracts = ContractAnalyzer.Analyze(
+            scope,
+            model,
+            [.. mapped.OrderBy(entry => entry.Key, StringComparer.Ordinal)],
+            cancellationToken);
+
+        return new ProblemDetailsAnalysis(invocation.GetLocation(), missing, EscapedTo: null, contracts);
     }
 
     /// <summary>
@@ -98,12 +107,17 @@ internal static class ProblemDetailsAnalyzer
         return node;
     }
 
-    private static ImmutableHashSet<string> MappedKindsIn(
+    /// <summary>
+    /// The <c>ErrorKind</c> to status-code mappings visible in a scope. The status code is read as a
+    /// compile-time constant, so <c>StatusCodes.Status404NotFound</c> and a bare <c>404</c> are the
+    /// same thing to a contract.
+    /// </summary>
+    private static Dictionary<string, int> MappedKindsIn(
         SyntaxNode scope,
         SemanticModel model,
         CancellationToken cancellationToken)
     {
-        ImmutableHashSet<string>.Builder mapped = ImmutableHashSet.CreateBuilder<string>(StringComparer.Ordinal);
+        Dictionary<string, int> mapped = new(StringComparer.Ordinal);
 
         foreach (InvocationExpressionSyntax invocation in scope.DescendantNodes().OfType<InvocationExpressionSyntax>())
         {
@@ -122,13 +136,20 @@ internal static class ProblemDetailsAnalyzer
             }
 
             if (model.GetSymbolInfo(invocation.ArgumentList.Arguments[0].Expression, cancellationToken).Symbol
-                is IFieldSymbol { ContainingType.Name: "ErrorKind" } kind)
+                is not IFieldSymbol { ContainingType.Name: "ErrorKind" } kind)
             {
-                mapped.Add(kind.Name);
+                continue;
             }
+
+            int statusCode = invocation.ArgumentList.Arguments.Count > 1
+                && model.GetConstantValue(invocation.ArgumentList.Arguments[1].Expression, cancellationToken) is { HasValue: true, Value: int value }
+                    ? value
+                    : 0;
+
+            mapped[kind.Name] = statusCode;
         }
 
-        return mapped.ToImmutable();
+        return mapped;
     }
 
     /// <summary>
