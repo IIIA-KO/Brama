@@ -3,6 +3,18 @@
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
         <RootNamespace>Brama</RootNamespace>
+
+        <!--
+          CA1716 flags Error/Get as reserved words in other CLR languages. Both names are
+          deliberate: they are what the design spec's handler code reads as, and renaming them to
+          appease Visual Basic would make the C# surface worse for every user.
+        -->
+        <!--
+          CA2007 asks for ConfigureAwait on every await. ASP.NET Core has no synchronization
+          context, so it buys nothing here and makes the pipeline code harder to read.
+          CA1812 flags internal types that only DI ever constructs, which it cannot see.
+        -->
+        <NoWarn>$(NoWarn);CA1716;CA2007;CA1812</NoWarn>
     </PropertyGroup>
 
     <ItemGroup>

@@ -12,7 +12,7 @@ namespace Brama.Configuration;
 /// chain; scalar settings replace. <c>Replace(c =&gt; c.Field)</c> clears the inherited value of one
 /// field before the declaring node's own value is applied.
 /// </remarks>
-public abstract class ConfigNode
+public abstract partial class ConfigNode
 {
     private readonly List<EndpointGroup> _children = [];
 
@@ -45,6 +45,31 @@ public abstract class ConfigNode
 
         return group;
     }
+
+    /// <summary>
+    /// This node and everything below it — nested groups and the endpoints declared on each — in
+    /// declaration order.
+    /// </summary>
+    public IEnumerable<ConfigNode> DescendantsAndSelf()
+    {
+        yield return this;
+
+        foreach (EndpointDefinition endpoint in Endpoints)
+        {
+            yield return endpoint;
+        }
+
+        foreach (EndpointGroup child in _children)
+        {
+            foreach (ConfigNode node in child.DescendantsAndSelf())
+            {
+                yield return node;
+            }
+        }
+    }
+
+    /// <summary>Every endpoint in this subtree.</summary>
+    public IEnumerable<EndpointDefinition> AllEndpoints() => DescendantsAndSelf().OfType<EndpointDefinition>();
 
     /// <summary>
     /// Walks this node's ancestry root-first and flattens it into a single value. Called once per
