@@ -483,3 +483,6 @@ $RECYCLE.BIN/
 # Vim temporary swap files
 *.swp
 .idea/
+
+# Local design docs — never tracked
+docs/superpowers/
