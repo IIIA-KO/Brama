@@ -151,6 +151,36 @@ public class EndpointSettingsTests
         Assert.Equal(1, handlerRuns);
     }
 
+    /// <summary>
+    /// A host that already added the CORS middleware itself must not be broken by Brama adding it
+    /// again — Brama's guard is "the tree asked for it", not "nobody else did".
+    /// </summary>
+    [Fact]
+    public async Task Cors_still_works_when_the_host_already_added_the_middleware()
+    {
+        await using BramaTestHost host = await BramaTestHost.StartAsync(
+            api =>
+            {
+                BramaTestHost.MapAllErrorKinds(api);
+                api.Group("Orders", g => g.Cors("trusted"))
+                    .MapGet<string>("/", (IEndpointContext ctx) => ctx.Ok("ok"));
+            },
+            services => services.AddCors(options => options.AddPolicy(
+                "trusted",
+                policy => policy.WithOrigins("https://trusted.example").AllowAnyHeader())),
+            app => app.UseCors());
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri("/orders", UriKind.Relative));
+        request.Headers.Add("Origin", "https://trusted.example");
+
+        HttpResponseMessage response = await host.Client.SendAsync(request);
+
+        Assert.Equal("ok", await response.Content.ReadFromJsonAsync<string>());
+        Assert.Equal(
+            "https://trusted.example",
+            response.Headers.GetValues("Access-Control-Allow-Origin").Single());
+    }
+
     [Fact]
     public async Task A_named_cors_policy_is_applied_to_the_endpoints_that_asked_for_it()
     {

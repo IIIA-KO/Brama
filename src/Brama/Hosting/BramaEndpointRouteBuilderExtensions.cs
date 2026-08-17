@@ -17,6 +17,13 @@ public static class BramaEndpointRouteBuilderExtensions
     /// and turning it into ordinary ASP.NET Core endpoint metadata. Nothing about the cascade
     /// survives into request handling.
     /// </summary>
+    /// <remarks>
+    /// This also inserts the CORS, rate-limiting and output-caching middleware if anything in the
+    /// tree asks for those, <em>at the point this is called</em> — so call it after any middleware
+    /// that must run first. The guard is "the tree asked for it", not "nobody else added it", so a
+    /// host that already called <c>UseCors()</c> ends up with it twice; that is harmless, and
+    /// leaving Brama's own registration unconditional keeps the behaviour predictable.
+    /// </remarks>
     public static IEndpointRouteBuilder MapBrama(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);

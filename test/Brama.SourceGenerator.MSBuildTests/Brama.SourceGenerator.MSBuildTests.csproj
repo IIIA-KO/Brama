@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <RootNamespace>Brama.SourceGenerator.MSBuildTests</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" />
+        <PackageReference Include="xunit" />
+        <PackageReference Include="xunit.runner.visualstudio">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <!--
+          Referenced so a fixture build always runs against freshly built binaries, and so this
+          project rebuilds when the generator or the targets change. ReferenceOutputAssembly is off
+          because nothing here compiles against them: the fixtures shell out to dotnet build.
+        -->
+        <ProjectReference Include="..\..\src\Brama\Brama.csproj" ReferenceOutputAssembly="false" />
+        <ProjectReference Include="..\..\src\Brama.SourceGenerator\Brama.SourceGenerator.csproj" ReferenceOutputAssembly="false" />
+    </ItemGroup>
+
+</Project>

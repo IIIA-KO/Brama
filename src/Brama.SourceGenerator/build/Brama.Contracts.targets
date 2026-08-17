@@ -13,8 +13,12 @@
     <BramaContractsEnabled Condition="'$(BramaContractsEnabled)' == ''">true</BramaContractsEnabled>
     <BramaContractsDirectory Condition="'$(BramaContractsDirectory)' == ''">$(MSBuildProjectDirectory)/contracts</BramaContractsDirectory>
 
-    <!-- The generator's output has to reach disk for this target to read it. -->
-    <EmitCompilerGeneratedFiles Condition="'$(BramaContractsEnabled)' == 'true'">true</EmitCompilerGeneratedFiles>
+    <!--
+      The generator's output has to reach disk for this target to read it. Only on real builds:
+      a design-time build never runs the check, and the directory the compiler would write into is
+      not created for it, so asking for the files there fails the compile outright.
+    -->
+    <EmitCompilerGeneratedFiles Condition="'$(BramaContractsEnabled)' == 'true' And '$(DesignTimeBuild)' != 'true'">true</EmitCompilerGeneratedFiles>
   </PropertyGroup>
 
   <Target Name="BramaVerifyContracts"

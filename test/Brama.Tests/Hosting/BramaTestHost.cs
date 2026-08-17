@@ -27,7 +27,8 @@ public sealed class BramaTestHost : IAsyncDisposable
 
     public static async Task<BramaTestHost> StartAsync(
         Action<ApiConfig> configure,
-        Action<IServiceCollection>? configureServices = null)
+        Action<IServiceCollection>? configureServices = null,
+        Action<WebApplication>? configureApp = null)
     {
         WebApplicationBuilder builder = WebApplication.CreateSlimBuilder(
             new WebApplicationOptions { EnvironmentName = Environments.Development });
@@ -37,6 +38,7 @@ public sealed class BramaTestHost : IAsyncDisposable
         builder.Services.AddBrama(configure);
 
         WebApplication app = builder.Build();
+        configureApp?.Invoke(app);
         app.MapBrama();
 
         await app.StartAsync();

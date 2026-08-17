@@ -11,6 +11,7 @@
   <Folder Name="/test/">
     <Project Path="test/Brama.Tests/Brama.Tests.csproj" />
     <Project Path="test/Brama.SourceGenerator.Tests/Brama.SourceGenerator.Tests.csproj" />
+    <Project Path="test/Brama.SourceGenerator.MSBuildTests/Brama.SourceGenerator.MSBuildTests.csproj" />
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/Brama.Sample.Api/Brama.Sample.Api.csproj" />
