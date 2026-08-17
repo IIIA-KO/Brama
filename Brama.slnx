@@ -1,0 +1,18 @@
+<Solution>
+  <Folder Name="/SolutionItems/">
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Brama.Abstractions/Brama.Abstractions.csproj" />
+    <Project Path="src/Brama/Brama.csproj" />
+    <Project Path="src/Brama.SourceGenerator/Brama.SourceGenerator.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/Brama.Tests/Brama.Tests.csproj" />
+    <Project Path="test/Brama.SourceGenerator.Tests/Brama.SourceGenerator.Tests.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/Brama.Sample.Api/Brama.Sample.Api.csproj" />
+  </Folder>
+</Solution>

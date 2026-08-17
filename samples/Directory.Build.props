@@ -1,0 +1,15 @@
+<Project>
+    <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+    <PropertyGroup>
+        <IsPackable>false</IsPackable>
+
+        <!--
+          Rules that are correct for a shipped library but wrong for a sample application:
+            CA1515 - a sample app's types are never referenced from outside the assembly.
+            CA2007 - ASP.NET Core has no synchronization context; ConfigureAwait is noise.
+            CA1812 - DI-instantiated sample types look uninstantiated to the analyzer.
+        -->
+        <NoWarn>$(NoWarn);CA1515;CA2007;CA1812</NoWarn>
+    </PropertyGroup>
+</Project>

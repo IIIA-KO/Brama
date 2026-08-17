@@ -1,0 +1,16 @@
+<Project>
+    <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+    <PropertyGroup>
+        <IsPackable>false</IsPackable>
+
+        <!--
+          Rules that are correct for a shipped library but wrong for a test assembly:
+            CA1515 - test fixtures/helpers are public by xunit convention, not as a public API surface.
+            CA1707 - underscored test names are the readability convention here.
+            CA2007 - no synchronization context in a test host; ConfigureAwait is noise.
+            CA1051 - test data records expose fields freely.
+        -->
+        <NoWarn>$(NoWarn);CA1515;CA1707;CA2007;CA1051</NoWarn>
+    </PropertyGroup>
+</Project>
