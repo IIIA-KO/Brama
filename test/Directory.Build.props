@@ -10,7 +10,9 @@
             CA1707 - underscored test names are the readability convention here.
             CA2007 - no synchronization context in a test host; ConfigureAwait is noise.
             CA1051 - test data records expose fields freely.
+            CA1812 - test doubles are referenced only as type arguments, which the analyzer
+                     cannot see as instantiation.
         -->
-        <NoWarn>$(NoWarn);CA1515;CA1707;CA2007;CA1051</NoWarn>
+        <NoWarn>$(NoWarn);CA1515;CA1707;CA2007;CA1051;CA1812</NoWarn>
     </PropertyGroup>
 </Project>
