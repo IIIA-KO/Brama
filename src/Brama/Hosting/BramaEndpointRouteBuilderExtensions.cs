@@ -43,6 +43,7 @@ public static class BramaEndpointRouteBuilderExtensions
             // exception boundary around the user filters rather than inside them.
             endpoint.ApplyResponseTyping(builder);
 
+            ApplyResponseBehaviors(builder, config, route);
             ApplyUserFilters(builder, config);
 
             // Innermost, so a user filter can still rewrite what gets validated, and the handler
@@ -105,6 +106,17 @@ public static class BramaEndpointRouteBuilderExtensions
         {
             builder.CacheOutput(policy => policy.Expire(duration));
         }
+    }
+
+    private static void ApplyResponseBehaviors(RouteHandlerBuilder builder, ResolvedConfig config, string route)
+    {
+        if (!ResponseBehaviorsFilter.IsNeededFor(config))
+        {
+            return;
+        }
+
+        var filter = new ResponseBehaviorsFilter(config, route);
+        builder.AddEndpointFilter(filter);
     }
 
     private static void ApplyUserFilters(RouteHandlerBuilder builder, ResolvedConfig config)
