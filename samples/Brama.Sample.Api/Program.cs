@@ -5,7 +5,7 @@ using Brama.Sample.Api.Orders;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddSingleton<IOrderRepository, InMemoryOrderRepository>();
+builder.Services.AddOrdersModule();
 
 builder.Services.AddBrama(api =>
 {

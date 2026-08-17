@@ -1,6 +1,15 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Brama.Sample.Api.Orders;
+
+/// <summary>
+/// The Orders module. Brama generates <c>AddOrdersModule()</c> for this marker, with every
+/// implementation below written out as a literal registration — no assembly scan at run time.
+/// </summary>
+[Module]
+[RegisterAll(typeof(IOrderRepository), Lifetime = ServiceLifetime.Singleton)]
+public partial class OrdersModule;
 
 public record CreateOrderBody(
     Guid CustomerId,

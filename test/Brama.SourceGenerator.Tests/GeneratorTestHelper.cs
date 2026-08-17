@@ -17,7 +17,11 @@ public static class GeneratorTestHelper
         // Touch the Brama assemblies so they are loaded before the sweep below: the generator
         // resolves ErrorKind and ApiConfig by metadata name, and a merely-referenced-but-unloaded
         // assembly would leave it looking at source with no Brama in it at all.
-        EnsureLoaded(typeof(ErrorKind), typeof(Brama.Configuration.ApiConfig));
+        EnsureLoaded(
+            typeof(ErrorKind),
+            typeof(Brama.Configuration.ApiConfig),
+            typeof(Microsoft.Extensions.DependencyInjection.IServiceCollection),
+            typeof(Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions));
 
         List<MetadataReference> references = AppDomain.CurrentDomain.GetAssemblies()
             .Where(assembly => !assembly.IsDynamic && !string.IsNullOrEmpty(assembly.Location))

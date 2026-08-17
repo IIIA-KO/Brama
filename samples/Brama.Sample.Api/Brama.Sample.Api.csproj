@@ -4,6 +4,7 @@
         <TargetFramework>net10.0</TargetFramework>
         <RootNamespace>Brama.Sample.Api</RootNamespace>
         <IsPackable>false</IsPackable>
+        <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     </PropertyGroup>
 
     <ItemGroup>

@@ -43,6 +43,22 @@ public sealed class BramaGenerator : IIncrementalGenerator
 
         context.RegisterSourceOutput(problemDetails.Collect(), static (sourceProductionContext, analyses) =>
             Report(sourceProductionContext, analyses));
+
+        IncrementalValuesProvider<INamedTypeSymbol> modules = context.SyntaxProvider
+            .CreateSyntaxProvider(
+                predicate: static (node, _) => ModuleEmitter.IsCandidate(node),
+                transform: static (syntaxContext, cancellationToken) =>
+                    ModuleEmitter.ModuleOf(syntaxContext, cancellationToken))
+            .Where(static module => module is not null)
+            .Select(static (module, _) => module!);
+
+        context.RegisterSourceOutput(
+            modules.Combine(context.CompilationProvider),
+            static (sourceProductionContext, pair) =>
+            {
+                (string hintName, string source) = ModuleEmitter.Emit(pair.Left, pair.Right);
+                sourceProductionContext.AddSource(hintName, source);
+            });
     }
 
     private static void Report(SourceProductionContext context, ImmutableArray<ProblemDetailsAnalysis> analyses)
