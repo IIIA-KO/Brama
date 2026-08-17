@@ -19,9 +19,27 @@ internal sealed class ResultConversionFilter<T> : IEndpointFilter
 
     public ResultConversionFilter(ProblemDetailsWriter problemDetails) => _problemDetails = problemDetails;
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Design",
+        "CA1031:Do not catch general exception types",
+        Justification = "This is the endpoint's exception boundary: any escaping exception must become problem+json rather than a leaked stack trace.")]
     public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
-        object? returned = await next(context);
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(next);
+
+        object? returned;
+        try
+        {
+            returned = await next(context);
+        }
+        catch (Exception exception)
+        {
+            // Brama's own exception boundary. It covers the handler and every user filter inside
+            // this one, which is Brama's pipeline; failures earlier in the request (model binding,
+            // other middleware) remain the host's business.
+            return _problemDetails.WriteException(exception, context.HttpContext);
+        }
 
         return returned switch
         {

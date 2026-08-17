@@ -35,11 +35,14 @@ public static class BramaEndpointRouteBuilderExtensions
             ApplyCors(builder, config);
             ApplyRateLimiting(builder, config);
             ApplyOutputCache(builder, config);
-            ApplyUserFilters(builder, config);
 
-            // Added last, so it is the innermost filter: user filters wrap it, which is what lets
-            // one of them short-circuit with a Result<T> and still be rendered through it.
+            // Added before the user's filters, and therefore outermost: endpoint filters run in the
+            // order they are added. Being outermost is what lets a user filter short-circuit with a
+            // Result<T> of its own and still have it rendered as problem+json, and what puts the
+            // exception boundary around the user filters rather than inside them.
             endpoint.ApplyResponseTyping(builder);
+
+            ApplyUserFilters(builder, config);
         }
 
         return endpoints;

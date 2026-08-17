@@ -29,9 +29,9 @@ public sealed class BramaTestHost : IAsyncDisposable
         Action<ApiConfig> configure,
         Action<IServiceCollection>? configureServices = null)
     {
-        WebApplicationBuilder builder = WebApplication.CreateSlimBuilder();
+        WebApplicationBuilder builder = WebApplication.CreateSlimBuilder(
+            new WebApplicationOptions { EnvironmentName = Environments.Development });
         builder.WebHost.UseTestServer();
-        builder.Environment.EnvironmentName = Environments.Development;
 
         configureServices?.Invoke(builder.Services);
         builder.Services.AddBrama(configure);

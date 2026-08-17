@@ -21,6 +21,11 @@ public sealed class EndpointGroup : ConfigNode<EndpointGroup>
     /// <see cref="Name"/>. Useful when two groups must share a route but not a name — a versioned
     /// pair such as <c>Orders</c> and <c>OrdersV2</c> both serving <c>/orders</c>.
     /// </summary>
+    /// <remarks>
+    /// This replaces only <em>this</em> group's own segment; ancestors still contribute theirs.
+    /// Calling it twice keeps the last call. To drop the ancestors' segments too — mounting a
+    /// subtree at the API root — use <c>Replace(c =&gt; c.RouteSegments)</c>.
+    /// </remarks>
     public EndpointGroup BaseRoute(string segment)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(segment);

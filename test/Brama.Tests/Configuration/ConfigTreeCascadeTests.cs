@@ -146,6 +146,33 @@ public class ConfigTreeCascadeTests
     }
 
     [Fact]
+    public void BaseRoute_replaces_only_this_groups_segment_not_its_ancestors()
+    {
+        var api = new ApiConfig();
+        EndpointGroup admin = api.Group("Orders").Group("Admin", g => g.BaseRoute("manage"));
+
+        Assert.Equal(["orders", "manage"], admin.Resolve().RouteSegments);
+    }
+
+    [Fact]
+    public void The_last_BaseRoute_call_wins()
+    {
+        var api = new ApiConfig();
+        EndpointGroup orders = api.Group("Orders", g => g.BaseRoute("first").BaseRoute("second"));
+
+        Assert.Equal(["second"], orders.Resolve().RouteSegments);
+    }
+
+    [Fact]
+    public void Replacing_route_segments_mounts_a_subtree_at_the_api_root()
+    {
+        var api = new ApiConfig();
+        EndpointGroup health = api.Group("Orders").Group("Health", g => g.Replace(c => c.RouteSegments));
+
+        Assert.Equal(["health"], health.Resolve().RouteSegments);
+    }
+
+    [Fact]
     public void Sibling_groups_do_not_leak_settings_into_each_other()
     {
         var api = new ApiConfig();
