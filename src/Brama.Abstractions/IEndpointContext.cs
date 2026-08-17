@@ -6,6 +6,15 @@ namespace Brama;
 /// </summary>
 public interface IEndpointContext : IErrorContext
 {
+    /// <summary>
+    /// The path of a named endpoint. Backs the generated <c>Links</c> methods; the group prefix and
+    /// version segment are applied by ASP.NET Core's own link generation, because they come from the
+    /// config tree and so are not known until the application is running.
+    /// </summary>
+    /// <param name="routeName">The name given to the endpoint with <c>Named(...)</c>.</param>
+    /// <param name="routeValues">Values for the route's parameters.</param>
+    string PathTo(string routeName, object? routeValues = null);
+
     /// <summary>Resolves a service from the request scope.</summary>
     TService Get<TService>()
         where TService : notnull;

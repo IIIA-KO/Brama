@@ -1,5 +1,6 @@
 using System.Globalization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -26,6 +27,15 @@ internal sealed class EndpointContext : IEndpointContext
         ?? throw new InvalidOperationException("IEndpointContext was used outside of a request.");
 
     public bool IsDevelopment => _environment.IsDevelopment();
+
+    public string PathTo(string routeName, object? routeValues = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(routeName);
+
+        return Get<LinkGenerator>().GetPathByName(HttpContext, routeName, routeValues)
+            ?? throw new InvalidOperationException(
+                $"No endpoint named '{routeName}' could be found. Names come from Named(\"...\") on an endpoint.");
+    }
 
     public TService Get<TService>()
         where TService : notnull =>

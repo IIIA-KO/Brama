@@ -57,6 +57,17 @@ public sealed class BramaGenerator : IIncrementalGenerator
             .Where(static module => module is not null)
             .Select(static (module, _) => module!);
 
+        IncrementalValuesProvider<NamedRoute> namedRoutes = context.SyntaxProvider
+            .CreateSyntaxProvider(
+                predicate: static (node, _) => LinksEmitter.IsCandidate(node),
+                transform: static (syntaxContext, cancellationToken) =>
+                    LinksEmitter.NamedRouteOf(syntaxContext, cancellationToken))
+            .Where(static route => route is not null)
+            .Select(static (route, _) => route!);
+
+        context.RegisterSourceOutput(namedRoutes.Collect(), static (sourceProductionContext, routes) =>
+            sourceProductionContext.AddSource("Brama.Links.g.cs", LinksEmitter.Emit(routes)));
+
         context.RegisterSourceOutput(
             modules.Combine(context.CompilationProvider),
             static (sourceProductionContext, pair) =>

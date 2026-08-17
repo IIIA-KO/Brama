@@ -16,8 +16,13 @@ namespace Brama.Http;
 internal sealed class ResultConversionFilter<T> : IEndpointFilter
 {
     private readonly ProblemDetailsWriter _problemDetails;
+    private readonly bool _disallowLinks;
 
-    public ResultConversionFilter(ProblemDetailsWriter problemDetails) => _problemDetails = problemDetails;
+    public ResultConversionFilter(ProblemDetailsWriter problemDetails, bool disallowLinks)
+    {
+        _problemDetails = problemDetails;
+        _disallowLinks = disallowLinks;
+    }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage(
         "Design",
@@ -65,9 +70,18 @@ internal sealed class ResultConversionFilter<T> : IEndpointFilter
             return Results.NoContent();
         }
 
-        object? body = result.Links.IsDefaultOrEmpty
-            ? result.Value
-            : WithLinks(result, httpContext);
+        bool hasLinks = !result.Links.IsDefaultOrEmpty;
+
+        if (hasLinks && _disallowLinks)
+        {
+            // Dropped rather than thrown. This subtree's team declared that it serves no hypermedia,
+            // and a handler disagreeing with that policy is a code review problem, not a reason to
+            // fail a request in production. The warning is what surfaces the disagreement.
+            BramaLog.LinksSuppressed(LoggerFor(httpContext), httpContext.Request.Path);
+            hasLinks = false;
+        }
+
+        object? body = hasLinks ? WithLinks(result, httpContext) : result.Value;
 
         return result.SuccessStatusCode == StatusCodes.Status201Created
             ? Results.Created(result.Location, body)
@@ -79,6 +93,12 @@ internal sealed class ResultConversionFilter<T> : IEndpointFilter
     /// actually called <c>WithLink</c>; otherwise the value is serialized untouched, so enabling
     /// hypermedia cannot change the shape of a response that does not use it.
     /// </summary>
+    private static Microsoft.Extensions.Logging.ILogger LoggerFor(HttpContext httpContext) =>
+        httpContext.RequestServices.GetService(typeof(Microsoft.Extensions.Logging.ILoggerFactory))
+            is Microsoft.Extensions.Logging.ILoggerFactory factory
+            ? factory.CreateLogger("Brama.Links")
+            : Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
+
     private static JsonNode? WithLinks(Result<T> result, HttpContext httpContext)
     {
         JsonSerializerOptions options = httpContext.RequestServices
@@ -90,6 +110,13 @@ internal sealed class ResultConversionFilter<T> : IEndpointFilter
         JsonNode? node = JsonSerializer.SerializeToNode(result.Value, options);
         if (node is not JsonObject envelope)
         {
+            // A scalar or array body has no member to hang _links off. Reported rather than passed
+            // over in silence, because the handler asked for links and is not getting them.
+            BramaLog.LinksNeedAnObjectBody(
+                LoggerFor(httpContext),
+                httpContext.Request.Path,
+                node?.GetValueKind().ToString() ?? "null");
+
             return node;
         }
 

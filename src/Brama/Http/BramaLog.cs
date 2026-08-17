@@ -19,4 +19,16 @@ internal static partial class BramaLog
         int statusCode,
         double elapsedMilliseconds,
         int? version);
+
+    [LoggerMessage(
+        EventId = 1001,
+        Level = LogLevel.Warning,
+        Message = "Links were attached to {Path}, but this subtree is configured with DisallowLinks. They were dropped from the response.")]
+    public static partial void LinksSuppressed(ILogger logger, string path);
+
+    [LoggerMessage(
+        EventId = 1002,
+        Level = LogLevel.Warning,
+        Message = "Links were attached to {Path}, but its response body serializes to {JsonKind} rather than an object, which has nowhere to put a _links member. They were dropped from the response.")]
+    public static partial void LinksNeedAnObjectBody(ILogger logger, string path, string jsonKind);
 }

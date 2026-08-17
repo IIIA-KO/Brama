@@ -1,6 +1,7 @@
 using Brama.Http;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Brama.Configuration;
 
@@ -46,8 +47,15 @@ public abstract partial class ConfigNode
             route,
             handler,
             typeof(TResponse),
-            static builder => builder
-                .AddEndpointFilter<ResultConversionFilter<TResponse>>()
+            static (builder, disallowLinks) => builder
+                .AddEndpointFilterFactory((factoryContext, next) =>
+                {
+                    var filter = new ResultConversionFilter<TResponse>(
+                        factoryContext.ApplicationServices.GetRequiredService<ProblemDetailsWriter>(),
+                        disallowLinks);
+
+                    return invocationContext => filter.InvokeAsync(invocationContext, next);
+                })
                 .Produces<TResponse>());
 
         _endpoints.Add(endpoint);

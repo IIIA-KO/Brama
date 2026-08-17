@@ -8,7 +8,7 @@ namespace Brama.Configuration;
 /// </summary>
 public sealed class EndpointDefinition : ConfigNode<EndpointDefinition>
 {
-    private readonly Action<RouteHandlerBuilder> _applyResponseTyping;
+    private readonly Action<RouteHandlerBuilder, bool> _applyResponseTyping;
 
     internal EndpointDefinition(
         ConfigNode parent,
@@ -16,7 +16,7 @@ public sealed class EndpointDefinition : ConfigNode<EndpointDefinition>
         string routeTemplate,
         Delegate handler,
         Type responseType,
-        Action<RouteHandlerBuilder> applyResponseTyping)
+        Action<RouteHandlerBuilder, bool> applyResponseTyping)
         : base(parent)
     {
         HttpMethod = httpMethod;
@@ -30,6 +30,12 @@ public sealed class EndpointDefinition : ConfigNode<EndpointDefinition>
     public string HttpMethod { get; }
 
     /// <summary>
+    /// The endpoint's route name, if it was given one. Naming an endpoint is what makes Brama
+    /// generate a <c>Links</c> method for it, and what lets that method resolve a path at runtime.
+    /// </summary>
+    public string? RouteName { get; private set; }
+
+    /// <summary>
     /// The route relative to the enclosing groups' segments — <c>"/{id:guid}"</c> under a group
     /// contributing <c>orders</c> serves <c>/orders/{id}</c>.
     /// </summary>
@@ -40,6 +46,18 @@ public sealed class EndpointDefinition : ConfigNode<EndpointDefinition>
 
     /// <summary>The response body type, i.e. the <c>T</c> of the handler's <c>Result&lt;T&gt;</c>.</summary>
     public Type ResponseType { get; }
+
+    /// <summary>
+    /// Names this endpoint, so it can be linked to. The name must be a literal for the generator to
+    /// emit a <c>Links</c> method from it.
+    /// </summary>
+    public EndpointDefinition Named(string routeName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(routeName);
+        RouteName = routeName;
+
+        return this;
+    }
 
     /// <summary>
     /// The full route, groups' segments and the endpoint's own template combined, before any
@@ -64,5 +82,6 @@ public sealed class EndpointDefinition : ConfigNode<EndpointDefinition>
     /// knew: the typed <c>Result&lt;T&gt;</c>-to-HTTP conversion filter and the OpenAPI
     /// <c>Produces&lt;T&gt;</c> metadata.
     /// </summary>
-    internal void ApplyResponseTyping(RouteHandlerBuilder builder) => _applyResponseTyping(builder);
+    internal void ApplyResponseTyping(RouteHandlerBuilder builder, bool disallowLinks) =>
+        _applyResponseTyping(builder, disallowLinks);
 }

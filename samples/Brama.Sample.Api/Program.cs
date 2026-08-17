@@ -1,6 +1,7 @@
 using Brama;
 using Brama.Configuration;
 using Brama.Hosting;
+using Brama.Generated;
 using Brama.Sample.Api.Orders;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
@@ -30,12 +31,13 @@ builder.Services.AddBrama(api =>
         {
             OrderResponse? order = ctx.Get<IOrderRepository>().Find(id);
 
+            // Links.GetOrder is generated from the Named("GetOrder") below: the compiler checks the
+            // parameter, and the version prefix comes from routing rather than an interpolated string.
             return order is null
                 ? ctx.NotFound($"No order with id {id}.")
-                : ctx.Ok(order)
-                    .WithLink("self", $"/v1/orders/{order.Id}")
-                    .WithLink("cancel", $"/v1/orders/{order.Id}/cancel", when: order.Status != "Cancelled");
-        });
+                : ctx.Ok(order).WithLink("self", Links.GetOrder(ctx, order.Id));
+        },
+        e => e.Named("GetOrder"));
 
     // POSTed to the collection, so ctx.Created's "request path + id" Location convention yields
     // /v1/orders/{newId} — the customer is part of the payload, not the address of the collection.
