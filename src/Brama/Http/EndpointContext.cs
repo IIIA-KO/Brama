@@ -47,7 +47,7 @@ internal sealed class EndpointContext : IEndpointContext
     {
         ArgumentNullException.ThrowIfNull(id);
 
-        string path = HttpContext.Request.Path.Value?.TrimEnd('/') ?? string.Empty;
+        var path = HttpContext.Request.Path.Value?.TrimEnd('/') ?? string.Empty;
         string identifier = System.Convert.ToString(id, CultureInfo.InvariantCulture) ?? string.Empty;
 
         return Result.Created(value, $"{path}/{identifier}");

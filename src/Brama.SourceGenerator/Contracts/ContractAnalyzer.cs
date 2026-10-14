@@ -27,9 +27,11 @@ internal static class ContractAnalyzer
         SyntaxNode scope,
         SemanticModel model,
         IReadOnlyList<KeyValuePair<string, int>> errorStatusCodes,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         Dictionary<ISymbol, GroupNode> groups = CollectGroups(scope, model, cancellationToken);
+
         if (groups.Count == 0)
         {
             return [];
@@ -58,15 +60,21 @@ internal static class ContractAnalyzer
             }
         }
 
-        return [.. groups.Values
-            .Where(group => group.Endpoints.Count > 0 && group.EffectiveVersion() is not null)
-            .Select(group => new ContractGroup(
-                group.Name,
-                group.EffectiveVersion()!.Value,
-                group.AcceptBreakingChangeReason,
-                [.. group.Endpoints.Select(endpoint => endpoint with { Route = group.RoutePrefix() + endpoint.Route })],
-                errorStatusCodes))
-            .OrderBy(group => group.Name, StringComparer.Ordinal)];
+        return
+        [
+            .. groups.Values
+                .Where(group => group.Endpoints.Count > 0 && group.EffectiveVersion() is not null)
+                .Select(group => new ContractGroup(
+                    group.Name,
+                    group.EffectiveVersion()!.Value,
+                    group.AcceptBreakingChangeReason,
+                    [
+                        .. group.Endpoints.Select(endpoint =>
+                            endpoint with { Route = group.RoutePrefix() + endpoint.Route })
+                    ],
+                    errorStatusCodes))
+                .OrderBy(group => group.Name, StringComparer.Ordinal)
+        ];
     }
 
     /// <summary>
@@ -85,7 +93,10 @@ internal static class ContractAnalyzer
             cancellationToken.ThrowIfCancellationRequested();
 
             if (declarator.Initializer?.Value is not InvocationExpressionSyntax invocation
-                || invocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.ValueText: "Group" } access
+                || invocation.Expression is not MemberAccessExpressionSyntax
+                {
+                    Name.Identifier.ValueText: "Group"
+                } access
                 || invocation.ArgumentList.Arguments.Count == 0
                 || model.GetDeclaredSymbol(declarator, cancellationToken) is not { } local)
             {
@@ -117,7 +128,8 @@ internal static class ContractAnalyzer
         return groups;
     }
 
-    private static bool IsConfigNode(SemanticModel model, ExpressionSyntax expression, CancellationToken cancellationToken)
+    private static bool IsConfigNode(SemanticModel model, ExpressionSyntax expression,
+        CancellationToken cancellationToken)
     {
         string? type = model.GetTypeInfo(expression, cancellationToken).Type?.ToDisplayString();
 
@@ -171,13 +183,15 @@ internal static class ContractAnalyzer
         }
 
         ITypeSymbol? response = model.GetTypeInfo(generic.TypeArgumentList.Arguments[0], cancellationToken).Type;
+
         if (response is null)
         {
             return null;
         }
 
         string method = access.Name.Identifier.ValueText.Substring("Map".Length).ToUpperInvariant();
-        IReadOnlyList<ContractShape> requests = ReadRequestShapes(invocation.ArgumentList.Arguments[1], model, cancellationToken);
+        IReadOnlyList<ContractShape> requests =
+            ReadRequestShapes(invocation.ArgumentList.Arguments[1], model, cancellationToken);
 
         return new ContractEndpoint(method, route.TrimEnd('/'), ShapeOf(response), requests);
     }
@@ -198,12 +212,15 @@ internal static class ContractAnalyzer
             _ => [],
         };
 
-        return [.. parameters
-            .Select(parameter => model.GetDeclaredSymbol(parameter, cancellationToken) as IParameterSymbol)
-            .Where(parameter => parameter is not null)
-            .Select(parameter => parameter!.Type)
-            .Where(IsRequestShape)
-            .Select(ShapeOf)];
+        return
+        [
+            .. parameters
+                .Select(parameter => model.GetDeclaredSymbol(parameter, cancellationToken) as IParameterSymbol)
+                .Where(parameter => parameter is not null)
+                .Select(parameter => parameter!.Type)
+                .Where(IsRequestShape)
+                .Select(ShapeOf)
+        ];
     }
 
     /// <summary>
@@ -223,17 +240,19 @@ internal static class ContractAnalyzer
 
     private static ContractShape ShapeOf(ITypeSymbol type) => new(
         type.ToDisplayString(),
-        [.. type.GetMembers()
-            .OfType<IPropertySymbol>()
-            .Where(property => property.DeclaredAccessibility == Accessibility.Public && !property.IsStatic)
-            .Select(property => new ContractField(property.Name, property.Type.ToDisplayString()))]);
+        [
+            .. type.GetMembers()
+                .OfType<IPropertySymbol>()
+                .Where(property => property.DeclaredAccessibility == Accessibility.Public && !property.IsStatic)
+                .Select(property => new ContractField(property.Name, property.Type.ToDisplayString()))
+        ]);
 
     private static string? LiteralString(ExpressionSyntax expression) =>
         expression is LiteralExpressionSyntax { Token.Value: string value } ? value : null;
 
     private sealed class GroupNode
     {
-        public GroupNode(string name) => Name = name;
+        public GroupNode(string name) => this.Name = name;
 
         public string Name { get; }
 
@@ -247,17 +266,17 @@ internal static class ContractAnalyzer
 
         public List<ContractEndpoint> Endpoints { get; } = [];
 
-        public int? EffectiveVersion() => Version ?? Parent?.EffectiveVersion();
+        public int? EffectiveVersion() => this.Version ?? this.Parent?.EffectiveVersion();
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Globalization",
-            "CA1308:Normalize strings to uppercase",
+            category: "Globalization",
+            checkId: "CA1308:Normalize strings to uppercase",
             Justification = "Mirrors the runtime's own route-segment casing, which is lower case by URL convention.")]
         public string RoutePrefix()
         {
-            string segment = "/" + (BaseRoute ?? Name.ToLowerInvariant()).Trim('/');
+            var segment = "/" + (this.BaseRoute ?? this.Name.ToLowerInvariant()).Trim('/');
 
-            return Parent is null ? segment : Parent.RoutePrefix() + segment;
+            return this.Parent is null ? segment : this.Parent.RoutePrefix() + segment;
         }
     }
 }
