@@ -5,7 +5,7 @@
 
 Brama is a library for building REST APIs on ASP.NET Core minimal APIs with less boilerplate and with error handling that the compiler checks for you. It does not replace ASP.NET Core routing. It adds a configuration tree on top of it, plus a Roslyn source generator and an MSBuild step that catch mistakes at build time instead of in production.
 
-> **Status: work in progress.** Brama is not on NuGet yet, and its API will change. It targets .NET 10.
+> **Status: proof of concept.** Brama is an experiment to find out whether these ideas hold up in practice. It is not on NuGet, and its API will likely change. If it turns out not to meet the needs it was built for, it may be archived. It targets .NET 10.
 
 ## Example
 
