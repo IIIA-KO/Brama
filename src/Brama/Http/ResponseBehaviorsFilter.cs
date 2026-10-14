@@ -140,14 +140,19 @@ internal sealed class ResponseBehaviorsFilter : IEndpointFilter
 
         http.Response.OnStarting(() =>
         {
-            BramaLog.Request(
-                logger,
-                level,
-                method,
-                _route,
-                http.Response.StatusCode,
-                Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds,
-                _config.Version);
+            if (logger.IsEnabled(level))
+            {
+                double elapsedMilliseconds = Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds;
+
+                BramaLog.Request(
+                    logger,
+                    level,
+                    method,
+                    _route,
+                    http.Response.StatusCode,
+                    elapsedMilliseconds,
+                    _config.Version);
+            }
 
             return Task.CompletedTask;
         });
