@@ -98,6 +98,28 @@ public sealed class ContractFixture : IDisposable
     {
         ArgumentNullException.ThrowIfNull(extraArguments);
 
+        return RunBuild(extraArguments);
+    }
+
+    /// <summary>
+    /// Builds the projects the fixture references, without building the fixture itself.
+    /// </summary>
+    /// <remarks>
+    /// A design-time build never builds its project references; it only reads their reference
+    /// assemblies, which an IDE has already produced. A test that drives a design-time build has to
+    /// recreate that state first, or it depends on another test having built Brama before it ran.
+    /// </remarks>
+    public BuildResult BuildReferences()
+    {
+        BuildResult brama = RunBuild($"{RepositoryRoot}/src/Brama/Brama.csproj");
+
+        return brama.Succeeded
+            ? RunBuild($"{RepositoryRoot}/src/Brama.SourceGenerator/Brama.SourceGenerator.csproj")
+            : brama;
+    }
+
+    private BuildResult RunBuild(params string[] arguments)
+    {
         var output = new StringBuilder();
 
         var process = new Process
@@ -118,7 +140,7 @@ public sealed class ContractFixture : IDisposable
 
         process.StartInfo.ArgumentList.Add("build");
         process.StartInfo.ArgumentList.Add("-nodeReuse:false");
-        foreach (string argument in extraArguments)
+        foreach (string argument in arguments)
         {
             process.StartInfo.ArgumentList.Add(argument);
         }

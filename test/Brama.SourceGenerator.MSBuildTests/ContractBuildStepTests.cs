@@ -35,6 +35,8 @@ public class ContractBuildStepTests
     {
         using var fixture = new ContractFixture();
         fixture.WriteProgram(OneEndpoint, Types);
+        BuildResult references = fixture.BuildReferences();
+        Assert.True(references.Succeeded, references.Output);
 
         BuildResult build = fixture.Build("-p:DesignTimeBuild=true");
 
